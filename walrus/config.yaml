@@ -1,0 +1,60 @@
+version: 1
+name: product-trace-walrus
+description: Walrus storage for Sui product traceability platform
+
+networks:
+  testnet:
+    endpoint: https://fullnode.testnet.sui.io:443
+
+tables:
+  products:
+    description: Product metadata storage
+    schema:
+      id: string
+      name: string
+      description: string
+      enterprise: string
+      created_at: integer
+      qrcode_count: integer
+      nft_count: integer
+
+  qrcodes:
+    description: QR Code records
+    schema:
+      id: string
+      product_id: string
+      created_at: integer
+
+  scan_records:
+    description: Scan history records
+    schema:
+      id: string
+      qrcode_id: string
+      scanner_address: string
+      scanned_at: integer
+      claimed: boolean
+
+  nft_claims:
+    description: NFT claim records
+    schema:
+      id: string
+      qrcode_id: string
+      product_id: string
+      claimer_address: string
+      claimed_at: integer
+      nft_object_id: string
+
+indexes:
+  - table: products
+    columns: [enterprise]
+  - table: qrcodes
+    columns: [product_id]
+  - table: scan_records
+    columns: [qrcode_id, scanner_address]
+  - table: nft_claims
+    columns: [product_id, claimer_address]
+
+caching:
+  enabled: true
+  ttl: 300
+  max_size: 1000
