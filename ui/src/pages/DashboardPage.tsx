@@ -30,19 +30,35 @@ export function DashboardPage() {
                     name: "My Enterprise",
                     description: "Enterprise description",
                 });
-                found = result.mock ? (result.data || null) : {
-                    id: "chain-enterprise-id",
-                    name: "My Enterprise",
-                    description: "Enterprise description",
-                    owner: currentAccount.address,
-                    createdAt: Date.now(),
-                    productCount: 0,
-                };
                 if (result.mock && result.data) {
+                    found = result.data;
+                } else if (!result.mock && result.data) {
+                    found = {
+                        id: result.data.id,
+                        name: result.data.name,
+                        description: result.data.description,
+                        owner: result.data.owner,
+                        createdAt: result.data.createdAt || Date.now(),
+                        productCount: result.data.productCount || 0,
+                    };
                     mockStore.registerEnterprise(
-                        result.data.name,
-                        result.data.description,
-                        result.data.owner
+                        found.name,
+                        found.description,
+                        found.owner
+                    );
+                } else {
+                    found = {
+                        id: "chain-enterprise-id",
+                        name: "My Enterprise",
+                        description: "Enterprise description",
+                        owner: currentAccount.address,
+                        createdAt: Date.now(),
+                        productCount: 0,
+                    };
+                    mockStore.registerEnterprise(
+                        found.name,
+                        found.description,
+                        found.owner
                     );
                 }
             }
