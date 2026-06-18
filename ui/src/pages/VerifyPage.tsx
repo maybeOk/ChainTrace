@@ -3,9 +3,10 @@ import { useParams, useNavigate } from "react-router-dom";
 import { useCurrentAccount } from "@mysten/dapp-kit-react";
 import { QRCodeScanner } from "../components/QRCodeScanner";
 import { WalletDropdown } from "../components/WalletDropdown";
-import { mockStore, type Enterprise } from "../store/mockStore";
+import { type Enterprise } from "../store/mockStore";
 import { useTheme } from "../context/ThemeContext";
 import { useLanguage } from "../context/LanguageContext";
+import { useBlockchainService } from "../services/blockchain";
 
 export function VerifyPage() {
     const currentAccount = useCurrentAccount();
@@ -14,13 +15,17 @@ export function VerifyPage() {
     const { t } = useLanguage();
     const { id } = useParams<{ id?: string }>();
     const navigate = useNavigate();
+    const { getEnterpriseFromChain } = useBlockchainService();
 
     useEffect(() => {
         if (currentAccount) {
-            const found = mockStore.getEnterpriseByOwner(currentAccount.address) || null;
-            setEnterprise(found);
+            const loadEnterprise = async () => {
+                const chainEnterprise = await getEnterpriseFromChain(currentAccount.address);
+                setEnterprise(chainEnterprise || null);
+            };
+            loadEnterprise();
         }
-    }, [currentAccount]);
+    }, [currentAccount, getEnterpriseFromChain]);
 
     const handleClearParams = () => {
         navigate("/verify");

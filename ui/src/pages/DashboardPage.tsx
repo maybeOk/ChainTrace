@@ -175,7 +175,7 @@ export function DashboardPage() {
 
             <main style={{ padding: "20px" }}>
                 <div style={{ maxWidth: 1200, margin: "0 auto" }}>
-                    {enterprise && <Dashboard enterprise={enterprise} />}
+                    {enterprise && <Dashboard enterprise={enterprise} ownerAddress={currentAccount.address} />}
                 </div>
             </main>
         </div>

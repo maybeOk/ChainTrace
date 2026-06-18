@@ -1,6 +1,6 @@
 import { useState, useEffect } from "react";
 import QRCode from "qrcode";
-import { mockStore, type Product, type DynamicField, type QRCodeRecord } from "../store/mockStore";
+import { type Product, type DynamicField, type QRCodeRecord } from "../store/mockStore";
 import { useTheme } from "../context/ThemeContext";
 import { useLanguage } from "../context/LanguageContext";
 import { useBlockchainService } from "../services/blockchain";
@@ -32,14 +32,17 @@ export function ProductDetail({ product, onClose, onUpdate }: ProductDetailProps
     const [pageSize, setPageSize] = useState(6);
     const { theme } = useTheme();
     const { t } = useLanguage();
-    const { uploadProductToChain } = useBlockchainService();
+    const { uploadProductToChain, getQRCodeByProductFromChain, createQRCode } = useBlockchainService();
 
     useEffect(() => {
-        const codes = mockStore.getQRCodeByProductId(product.id);
-        setQrcodes(codes);
-        generateQrcodeImages(codes);
-        setCurrentPage(1);
-    }, [product.id]);
+        const loadQrcodes = async () => {
+            const codes = await getQRCodeByProductFromChain(product.id);
+            setQrcodes(codes);
+            generateQrcodeImages(codes);
+            setCurrentPage(1);
+        };
+        loadQrcodes();
+    }, [product.id, getQRCodeByProductFromChain]);
 
     useEffect(() => {
         setCurrentPage(1);
@@ -63,11 +66,6 @@ export function ProductDetail({ product, onClose, onUpdate }: ProductDetailProps
     };
 
     const handleSaveBasic = () => {
-        mockStore.updateProduct(product.id, {
-            name: editNameValue,
-            category: editCategoryValue,
-            description: editDescriptionValue,
-        });
         setEditingName(false);
         setEditingCategory(false);
         setEditingDescription(false);
@@ -88,12 +86,6 @@ export function ProductDetail({ product, onClose, onUpdate }: ProductDetailProps
             type: newFieldType,
         };
 
-        mockStore.addProductField(product.id, {
-            name: newFieldName,
-            value: newFieldValue,
-            type: newFieldType,
-        });
-
         setFields([...fields, newField]);
         setNewFieldName("");
         setNewFieldValue("");
@@ -107,7 +99,6 @@ export function ProductDetail({ product, onClose, onUpdate }: ProductDetailProps
             return;
         }
 
-        mockStore.removeProductField(product.id, fieldId);
         setFields(fields.filter(f => f.id !== fieldId));
         onUpdate();
     };
@@ -118,14 +109,13 @@ export function ProductDetail({ product, onClose, onUpdate }: ProductDetailProps
     };
 
     const handleSaveField = (fieldId: string) => {
-        mockStore.updateProductField(product.id, fieldId, { value: editFieldValue });
         setFields(fields.map(f => f.id === fieldId ? { ...f, value: editFieldValue } : f));
         setEditingFieldId(null);
         setEditFieldValue("");
         onUpdate();
     };
 
-    const handleGenerateQRCode = () => {
+    const handleGenerateQRCode = async () => {
         const remaining = product.quantity - product.qrcodeCount;
         if (remaining <= 0) {
             alert(t("allQrcodesGenerated"));
@@ -139,10 +129,19 @@ export function ProductDetail({ product, onClose, onUpdate }: ProductDetailProps
             return;
         }
         const actualCount = Math.min(numCount, remaining);
-        const newQrcodes = mockStore.createBatchQRCode(product.id, actualCount);
+        const newQrcodes: any[] = [];
+        for (let i = 0; i < actualCount; i++) {
+            const result = await createQRCode({
+                productId: product.id,
+                productVersion: "1",
+            });
+            if (result.data) {
+                newQrcodes.push(result.data);
+            }
+        }
         const urls = newQrcodes.map(q => `${window.location.origin}/verify/${q.id}`).join("\n");
         navigator.clipboard.writeText(urls);
-        alert(`${t("batchQrcodeGenerated")}\n\n${t("generatedCount")}: ${newQrcodes.length}\n\n${t("qrcodeUrls")}:\n${urls}\n\n✅ URL列表已复制到剪贴板`);
+        alert(`${t("batchQrcodeGenerated")}\n\n${t("generatedCount")}: ${newQrcodes.length}\n\n${t("qrcodeUrls")}:\n${urls}\n\n${t("urlCopied")}`);
         onUpdate();
     };
 

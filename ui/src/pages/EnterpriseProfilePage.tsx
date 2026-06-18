@@ -3,9 +3,10 @@ import { useCurrentAccount } from "@mysten/dapp-kit-react";
 import { useNavigate } from "react-router-dom";
 import { ClipLoader } from "react-spinners";
 import { WalletDropdown } from "../components/WalletDropdown";
-import { mockStore, type Enterprise } from "../store/mockStore";
+import { type Enterprise } from "../store/mockStore";
 import { useTheme } from "../context/ThemeContext";
 import { useLanguage } from "../context/LanguageContext";
+import { useBlockchainService } from "../services/blockchain";
 
 export function EnterpriseProfilePage() {
     const currentAccount = useCurrentAccount();
@@ -17,6 +18,7 @@ export function EnterpriseProfilePage() {
     const [saved, setSaved] = useState(false);
     const { theme } = useTheme();
     const { t } = useLanguage();
+    const { getEnterpriseFromChain } = useBlockchainService();
 
     useEffect(() => {
         if (!currentAccount) {
@@ -24,20 +26,23 @@ export function EnterpriseProfilePage() {
             return;
         }
 
-        const found = mockStore.getEnterpriseByOwner(currentAccount.address);
-        if (found) {
-            setEnterprise(found);
-            setName(found.name);
-            setDescription(found.description);
-        }
-        setLoading(false);
-    }, [currentAccount, navigate]);
+        const loadEnterprise = async () => {
+            const chainEnterprise = await getEnterpriseFromChain(currentAccount.address);
+            if (chainEnterprise) {
+                setEnterprise(chainEnterprise);
+                setName(chainEnterprise.name);
+                setDescription(chainEnterprise.description);
+            }
+            setLoading(false);
+        };
+
+        loadEnterprise();
+    }, [currentAccount, navigate, getEnterpriseFromChain]);
 
     const handleSubmit = (e: React.FormEvent) => {
         e.preventDefault();
         if (!enterprise) return;
 
-        mockStore.updateEnterprise(enterprise.id, name, description);
         setEnterprise({ ...enterprise, name, description });
         setSaved(true);
         setTimeout(() => setSaved(false), 3000);

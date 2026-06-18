@@ -429,6 +429,136 @@ export function useBlockchainService() {
         }
     };
 
+    const getProductsFromChain = async (ownerAddress: string): Promise<any[]> => {
+        try {
+            const ownedObjects = await suiClient.listOwnedObjects({
+                owner: ownerAddress,
+                type: `${PACKAGE_ID}::product::Product`,
+            });
+
+            const products: any[] = [];
+            for (const obj of ownedObjects.objects) {
+                const objectData = await suiClient.getObject({
+                    objectId: obj.objectId,
+                    include: { type: true, json: true },
+                });
+                
+                if (objectData.object && objectData.object.json) {
+                    const jsonData = objectData.object.json as Record<string, any>;
+                    products.push({
+                        id: objectData.object.objectId,
+                        enterpriseId: jsonData.enterprise_id?.id || "",
+                        name: jsonData.name,
+                        description: jsonData.description,
+                        category: jsonData.category,
+                        status: "on_chain",
+                        createdAt: Number(jsonData.created_at),
+                        qrcodeCount: Number(jsonData.qrcode_count),
+                        quantity: Number(jsonData.quantity),
+                        fields: jsonData.fields ? JSON.parse(jsonData.fields) : [],
+                        chainId: objectData.object.objectId,
+                    });
+                }
+            }
+            return products;
+        } catch (error) {
+            console.error("Failed to get products from chain:", error);
+            return [];
+        }
+    };
+
+    const getProductFromChain = async (productId: string): Promise<any | null> => {
+        try {
+            const objectData = await suiClient.getObject({
+                objectId: productId,
+                include: { type: true, json: true },
+            });
+            
+            if (objectData.object && objectData.object.json) {
+                const jsonData = objectData.object.json as Record<string, any>;
+                return {
+                    id: objectData.object.objectId,
+                    enterpriseId: jsonData.enterprise_id?.id || "",
+                    name: jsonData.name,
+                    description: jsonData.description,
+                    category: jsonData.category,
+                    status: "on_chain",
+                    createdAt: Number(jsonData.created_at),
+                    qrcodeCount: Number(jsonData.qrcode_count),
+                    quantity: Number(jsonData.quantity),
+                    fields: jsonData.fields ? JSON.parse(jsonData.fields) : [],
+                    chainId: objectData.object.objectId,
+                };
+            }
+            return null;
+        } catch (error) {
+            console.error("Failed to get product from chain:", error);
+            return null;
+        }
+    };
+
+    const getQRCodeFromChain = async (qrcodeId: string): Promise<any | null> => {
+        try {
+            const objectData = await suiClient.getObject({
+                objectId: qrcodeId,
+                include: { type: true, json: true },
+            });
+            
+            if (objectData.object && objectData.object.json) {
+                const jsonData = objectData.object.json as Record<string, any>;
+                return {
+                    id: objectData.object.objectId,
+                    productId: jsonData.product_id?.id || "",
+                    code: jsonData.code,
+                    scanned: jsonData.scanned,
+                    scanner: jsonData.scanner || "",
+                    claimed: jsonData.claimed,
+                    claimer: jsonData.claimer || "",
+                    createdAt: Number(jsonData.created_at),
+                };
+            }
+            return null;
+        } catch (error) {
+            console.error("Failed to get qrcode from chain:", error);
+            return null;
+        }
+    };
+
+    const getQRCodeByProductFromChain = async (productId: string): Promise<any[]> => {
+        try {
+            const ownedObjects = await suiClient.listOwnedObjects({
+                owner: productId,
+                type: `${PACKAGE_ID}::qrcode::QRCode`,
+            });
+
+            const qrcodes: any[] = [];
+            for (const obj of ownedObjects.objects) {
+                const objectData = await suiClient.getObject({
+                    objectId: obj.objectId,
+                    include: { type: true, json: true },
+                });
+                
+                if (objectData.object && objectData.object.json) {
+                    const jsonData = objectData.object.json as Record<string, any>;
+                    qrcodes.push({
+                        id: objectData.object.objectId,
+                        productId: productId,
+                        code: jsonData.code,
+                        scanned: jsonData.scanned,
+                        scanner: jsonData.scanner || "",
+                        claimed: jsonData.claimed,
+                        claimer: jsonData.claimer || "",
+                        createdAt: Number(jsonData.created_at),
+                    });
+                }
+            }
+            return qrcodes;
+        } catch (error) {
+            console.error("Failed to get qrcodes from chain:", error);
+            return [];
+        }
+    };
+
     const isRegisteredOnChain = async (ownerAddress: string): Promise<boolean> => {
         try {
             const enterprise = await getEnterpriseFromChain(ownerAddress);
@@ -448,6 +578,10 @@ export function useBlockchainService() {
         getQRCodeInfo,
         getProductInfo,
         getEnterpriseFromChain,
+        getProductsFromChain,
+        getProductFromChain,
+        getQRCodeFromChain,
+        getQRCodeByProductFromChain,
         isRegisteredOnChain,
         // 导出不带 mock 的链上方法，供高级使用
         registerEnterpriseOnChain,

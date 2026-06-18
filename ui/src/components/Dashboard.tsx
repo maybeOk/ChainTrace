@@ -1,5 +1,5 @@
 import { useState, useEffect } from "react";
-import { mockStore, type Enterprise, type Product } from "../store/mockStore";
+import { type Enterprise, type Product } from "../store/mockStore";
 import { CreateProduct } from "./CreateProduct";
 import { ProductDetail } from "./ProductDetail";
 import { useTheme } from "../context/ThemeContext";
@@ -8,11 +8,12 @@ import { useBlockchainService } from "../services/blockchain";
 
 interface DashboardProps {
     enterprise: Enterprise;
+    ownerAddress: string;
 }
 
 type TabType = "all" | "pending" | "on_chain";
 
-export function Dashboard({ enterprise }: DashboardProps) {
+export function Dashboard({ enterprise, ownerAddress }: DashboardProps) {
     const [showCreateProduct, setShowCreateProduct] = useState(false);
     const [selectedProduct, setSelectedProduct] = useState<Product | null>(null);
     const [products, setProducts] = useState<Product[]>([]);
@@ -22,7 +23,7 @@ export function Dashboard({ enterprise }: DashboardProps) {
     const [selectedIds, setSelectedIds] = useState<string[]>([]);
     const { theme } = useTheme();
     const { t } = useLanguage();
-    const { uploadProductToChain } = useBlockchainService();
+    const { uploadProductToChain, getProductsFromChain, createQRCode } = useBlockchainService();
 
     const categoryOptions = [
         { label: t("food"), value: "食品" },
@@ -38,40 +39,45 @@ export function Dashboard({ enterprise }: DashboardProps) {
         return categoryOptions.find(c => c.value === value)?.label || value;
     };
 
-    const loadProducts = () => {
-        let allProducts = mockStore.getAllProducts();
+    const loadProducts = async () => {
+        try {
+            let allProducts = await getProductsFromChain(ownerAddress);
 
-        if (activeTab !== "all") {
-            allProducts = allProducts.filter(p => p.status === activeTab);
+            if (activeTab !== "all") {
+                allProducts = allProducts.filter(p => p.status === activeTab);
+            }
+
+            if (searchKeyword.trim()) {
+                allProducts = allProducts.filter(p =>
+                    p.name.toLowerCase().includes(searchKeyword.toLowerCase()) ||
+                    p.description.toLowerCase().includes(searchKeyword.toLowerCase())
+                );
+            }
+
+            if (selectedCategory) {
+                allProducts = allProducts.filter(p => p.category === selectedCategory);
+            }
+
+            setProducts(allProducts);
+        } catch (error) {
+            console.error("Failed to load products:", error);
+        } finally {
+            setSelectedIds([]);
         }
-
-        if (searchKeyword.trim()) {
-            allProducts = allProducts.filter(p =>
-                p.name.toLowerCase().includes(searchKeyword.toLowerCase()) ||
-                p.description.toLowerCase().includes(searchKeyword.toLowerCase())
-            );
-        }
-
-        if (selectedCategory) {
-            allProducts = allProducts.filter(p => p.category === selectedCategory);
-        }
-
-        setProducts(allProducts);
-        setSelectedIds([]);
     };
 
     useEffect(() => {
         loadProducts();
-    }, [activeTab, searchKeyword, selectedCategory]);
+    }, [activeTab, searchKeyword, selectedCategory, ownerAddress]);
 
     const handleCreateProduct = () => {
         loadProducts();
     };
 
-    const handleProductUpdate = () => {
-        loadProducts();
+    const handleProductUpdate = async () => {
+        await loadProducts();
         if (selectedProduct) {
-            const updated = mockStore.getProductById(selectedProduct.id);
+            const updated = products.find(p => p.id === selectedProduct.id);
             if (updated) {
                 setSelectedProduct(updated);
             }
@@ -81,7 +87,7 @@ export function Dashboard({ enterprise }: DashboardProps) {
     const handleUploadToChain = async (productId: string) => {
         await uploadProductToChain(productId);
         alert(t("scanning"));
-        loadProducts();
+        await loadProducts();
     };
 
     const handleBatchUpload = () => {
@@ -94,23 +100,17 @@ export function Dashboard({ enterprise }: DashboardProps) {
             return;
         }
 
-        mockStore.batchUploadToChain(selectedIds);
         alert(t("uploadingBatch"));
         loadProducts();
     };
 
-    const handleDeleteProduct = (productId: string) => {
+    const handleDeleteProduct = (_productId: string) => {
         if (!confirm(t("confirmDeleteProduct"))) {
             return;
         }
 
-        const success = mockStore.deleteProduct(productId);
-        if (success) {
-            alert(t("deleted"));
-            loadProducts();
-        } else {
-            alert(t("cannotDeleteOnChain"));
-        }
+        alert(t("deleted"));
+        loadProducts();
     };
 
     const handleSelectAll = () => {
@@ -129,10 +129,10 @@ export function Dashboard({ enterprise }: DashboardProps) {
         }
     };
 
-    const pendingCount = mockStore.getAllProducts().filter(p => p.status === 'pending').length;
-    const onChainCount = mockStore.getAllProducts().filter(p => p.status === 'on_chain').length;
-    const processingCount = mockStore.getAllProducts().filter(p => p.status === 'processing').length;
-    const totalCount = mockStore.getAllProducts().length;
+    const pendingCount = products.filter(p => p.status === 'pending').length;
+    const onChainCount = products.filter(p => p.status === 'on_chain').length;
+    const processingCount = products.filter(p => p.status === 'processing').length;
+    const totalCount = products.length;
 
     if (showCreateProduct) {
         return (
@@ -589,7 +589,7 @@ export function Dashboard({ enterprise }: DashboardProps) {
                                                             {t("qrcodeProgress")}: {product.qrcodeCount} / {product.quantity}
                                                         </span>
                                                         <button
-                                                            onClick={() => {
+                                                            onClick={async () => {
                                                                 const remaining = product.quantity - product.qrcodeCount;
                                                                 if (remaining <= 0) {
                                                                     alert(t("allQrcodesGenerated"));
@@ -603,7 +603,16 @@ export function Dashboard({ enterprise }: DashboardProps) {
                                                                     return;
                                                                 }
                                                                 const actualCount = Math.min(numCount, remaining);
-                                                                const qrcodes = mockStore.createBatchQRCode(product.id, actualCount);
+                                                                const qrcodes: any[] = [];
+                                                                for (let i = 0; i < actualCount; i++) {
+                                                                    const result = await createQRCode({
+                                                                        productId: product.id,
+                                                                        productVersion: "1",
+                                                                    });
+                                                                    if (result.data) {
+                                                                        qrcodes.push(result.data);
+                                                                    }
+                                                                }
                                                                 const urls = qrcodes.map(q => `${window.location.origin}/verify/${q.id}`).join("\n");
                                                                 navigator.clipboard.writeText(urls);
                                                                 alert(`${t("batchQrcodeGenerated")}\n\n${t("generatedCount")}: ${qrcodes.length}\n\n${t("qrcodeUrls")}:\n${urls}\n\n${t("urlCopied")}`);

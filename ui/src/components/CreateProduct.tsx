@@ -1,7 +1,8 @@
 import { useState } from "react";
-import { mockStore, type Enterprise, type DynamicField } from "../store/mockStore";
+import { type Enterprise, type DynamicField } from "../store/mockStore";
 import { useTheme } from "../context/ThemeContext";
 import { useLanguage } from "../context/LanguageContext";
+import { useBlockchainService } from "../services/blockchain";
 
 interface CreateProductProps {
     enterprise: Enterprise;
@@ -22,6 +23,7 @@ export function CreateProduct({ enterprise, onCreated, onClose }: CreateProductP
     const [isSubmitting, setIsSubmitting] = useState(false);
     const { theme } = useTheme();
     const { t } = useLanguage();
+    const { createProduct, uploadProductToChain } = useBlockchainService();
 
     const categoryList = [
         { key: t("food"), value: "食品" },
@@ -56,7 +58,7 @@ export function CreateProduct({ enterprise, onCreated, onClose }: CreateProductP
         setFields(fields.filter(f => f.id !== fieldId));
     };
 
-    const handleSubmit = (uploadToChain: boolean) => {
+    const handleSubmit = async (uploadToChain: boolean) => {
         if (!name.trim() || !category || !description.trim()) {
             alert(t("pleaseFillBasic"));
             return;
@@ -64,25 +66,29 @@ export function CreateProduct({ enterprise, onCreated, onClose }: CreateProductP
 
         setIsSubmitting(true);
 
-        setTimeout(() => {
-            const product = mockStore.createProduct(
-                enterprise.id,
+        try {
+            const result = await createProduct({
+                enterpriseId: enterprise.id,
+                enterpriseVersion: "1",
                 name,
-                category,
                 description,
+                category,
                 fields,
-                quantity
-            );
+            });
 
-            if (uploadToChain) {
-                mockStore.uploadProductToChain(product.id);
+            if (uploadToChain && result.data) {
+                await uploadProductToChain(result.data.id);
             }
 
             alert(uploadToChain ? t("productCreated") : t("productSaved"));
             onCreated();
             onClose();
+        } catch (error) {
+            console.error("Failed to create product:", error);
+            alert(t("createFailed"));
+        } finally {
             setIsSubmitting(false);
-        }, 500);
+        }
     };
 
     return (
