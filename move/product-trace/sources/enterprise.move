@@ -4,6 +4,7 @@ module product_trace::enterprise {
     use sui::transfer;
     use sui::tx_context::{Self, TxContext};
     use sui::event;
+    use sui::dynamic_field::{Self};
 
     public struct Enterprise has key {
         id: UID,
@@ -25,7 +26,12 @@ module product_trace::enterprise {
         name: String,
     }
 
+    public struct RegisteredFlag has store {
+        exists: bool,
+    }
+
     const ENotOwner: u64 = 1;
+    const EAlreadyRegistered: u64 = 2;
 
     fun init(ctx: &mut TxContext) {
         let manager = EnterpriseManager {
@@ -43,6 +49,8 @@ module product_trace::enterprise {
     ) {
         let sender = tx_context::sender(ctx);
         
+        assert!((!dynamic_field::exists_<address>(&manager.id, sender)), EAlreadyRegistered);
+        
         let enterprise = Enterprise {
             id: object::new(ctx),
             name,
@@ -53,6 +61,8 @@ module product_trace::enterprise {
         };
         
         manager.total_enterprises = manager.total_enterprises + 1;
+        
+        dynamic_field::add(&mut manager.id, sender, RegisteredFlag { exists: true });
         
         event::emit(EnterpriseRegistered {
             enterprise_id: object::id(&enterprise),
@@ -104,5 +114,9 @@ module product_trace::enterprise {
 
     public fun get_total_enterprises(manager: &EnterpriseManager): u64 {
         manager.total_enterprises
+    }
+
+    public fun is_registered(manager: &EnterpriseManager, addr: address): bool {
+        dynamic_field::exists_<address>(&manager.id, addr)
     }
 }

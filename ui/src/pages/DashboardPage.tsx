@@ -15,7 +15,7 @@ export function DashboardPage() {
     const [enterprise, setEnterprise] = useState<Enterprise | null>(null);
     const { theme } = useTheme();
     const { t } = useLanguage();
-    const { registerEnterprise } = useBlockchainService();
+    const { registerEnterprise, getEnterpriseFromChain } = useBlockchainService();
 
     useEffect(() => {
         if (!currentAccount) {
@@ -25,21 +25,17 @@ export function DashboardPage() {
 
         const checkOrCreateEnterprise = async () => {
             let found: Enterprise | null = mockStore.getEnterpriseByOwner(currentAccount.address) || null;
+            
             if (!found) {
-                const result = await registerEnterprise({
-                    name: "My Enterprise",
-                    description: "Enterprise description",
-                });
-                if (result.mock && result.data) {
-                    found = result.data;
-                } else if (!result.mock && result.data) {
+                const chainEnterprise = await getEnterpriseFromChain(currentAccount.address);
+                if (chainEnterprise) {
                     found = {
-                        id: result.data.id,
-                        name: result.data.name,
-                        description: result.data.description,
-                        owner: result.data.owner,
-                        createdAt: result.data.createdAt || Date.now(),
-                        productCount: result.data.productCount || 0,
+                        id: chainEnterprise.id,
+                        name: chainEnterprise.name,
+                        description: chainEnterprise.description,
+                        owner: chainEnterprise.owner,
+                        createdAt: chainEnterprise.createdAt || Date.now(),
+                        productCount: chainEnterprise.productCount || 0,
                     };
                     mockStore.registerEnterprise(
                         found.name,
@@ -47,19 +43,41 @@ export function DashboardPage() {
                         found.owner
                     );
                 } else {
-                    found = {
-                        id: "chain-enterprise-id",
+                    const result = await registerEnterprise({
                         name: "My Enterprise",
                         description: "Enterprise description",
-                        owner: currentAccount.address,
-                        createdAt: Date.now(),
-                        productCount: 0,
-                    };
-                    mockStore.registerEnterprise(
-                        found.name,
-                        found.description,
-                        found.owner
-                    );
+                    });
+                    if (result.mock && result.data) {
+                        found = result.data;
+                    } else if (!result.mock && result.data) {
+                        found = {
+                            id: result.data.id,
+                            name: result.data.name,
+                            description: result.data.description,
+                            owner: result.data.owner,
+                            createdAt: result.data.createdAt || Date.now(),
+                            productCount: result.data.productCount || 0,
+                        };
+                        mockStore.registerEnterprise(
+                            found.name,
+                            found.description,
+                            found.owner
+                        );
+                    } else {
+                        found = {
+                            id: "chain-enterprise-id",
+                            name: "My Enterprise",
+                            description: "Enterprise description",
+                            owner: currentAccount.address,
+                            createdAt: Date.now(),
+                            productCount: 0,
+                        };
+                        mockStore.registerEnterprise(
+                            found.name,
+                            found.description,
+                            found.owner
+                        );
+                    }
                 }
             }
             setEnterprise(found);
@@ -67,7 +85,7 @@ export function DashboardPage() {
         };
 
         checkOrCreateEnterprise();
-    }, [currentAccount, registerEnterprise]);
+    }, [currentAccount, registerEnterprise, getEnterpriseFromChain]);
 
     if (!currentAccount) {
         return (

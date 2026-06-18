@@ -1,6 +1,7 @@
 import { mockStore } from "../store/mockStore";
 import { useCurrentAccount, useDAppKit } from "@mysten/dapp-kit-react";
 import { Transaction } from "@mysten/sui/transactions";
+import { SuiGrpcClient } from "@mysten/sui/grpc";
 
 // 配置 - 从环境变量读取
 const PACKAGE_ID = import.meta.env.VITE_CONTRACT_PACKAGE_ID || "0x0";
@@ -9,6 +10,11 @@ const ENTERPRISE_MANAGER_ID = import.meta.env.VITE_ENTERPRISE_MANAGER_ID || "0x0
 const PRODUCT_MANAGER_ID = import.meta.env.VITE_PRODUCT_MANAGER_ID || "0x0";
 const NFT_MANAGER_ID = import.meta.env.VITE_NFT_MANAGER_ID || "0x0";
 const QRCODE_MANAGER_ID = import.meta.env.VITE_QRCODE_MANAGER_ID || "0x0";
+
+const NETWORK = import.meta.env.VITE_SUI_NETWORK || "testnet";
+const RPC_URL = import.meta.env.VITE_SUI_RPC_URL || "https://fullnode.testnet.sui.io:443";
+
+const suiClient = new SuiGrpcClient({ network: NETWORK, baseUrl: RPC_URL });
 
 interface RegisterEnterpriseParams {
     name: string;
@@ -391,6 +397,47 @@ export function useBlockchainService() {
         return mockStore.getProductInfo(productId);
     };
 
+    const getEnterpriseFromChain = async (ownerAddress: string): Promise<any | null> => {
+        try {
+            const ownedObjects = await suiClient.listOwnedObjects({
+                owner: ownerAddress,
+                type: `${PACKAGE_ID}::enterprise::Enterprise`,
+            });
+
+            for (const obj of ownedObjects.objects) {
+                const objectData = await suiClient.getObject({
+                    objectId: obj.objectId,
+                    include: { type: true, json: true },
+                });
+                
+                if (objectData.object && objectData.object.json) {
+                    const jsonData = objectData.object.json as Record<string, any>;
+                    return {
+                        id: objectData.object.objectId,
+                        name: jsonData.name,
+                        description: jsonData.description,
+                        owner: jsonData.owner,
+                        createdAt: Number(jsonData.created_at),
+                        productCount: Number(jsonData.product_count),
+                    };
+                }
+            }
+            return null;
+        } catch (error) {
+            console.error("Failed to get enterprise from chain:", error);
+            return null;
+        }
+    };
+
+    const isRegisteredOnChain = async (ownerAddress: string): Promise<boolean> => {
+        try {
+            const enterprise = await getEnterpriseFromChain(ownerAddress);
+            return enterprise !== null;
+        } catch {
+            return false;
+        }
+    };
+
     return {
         registerEnterprise,
         createProduct,
@@ -400,6 +447,8 @@ export function useBlockchainService() {
         claimNFT,
         getQRCodeInfo,
         getProductInfo,
+        getEnterpriseFromChain,
+        isRegisteredOnChain,
         // 导出不带 mock 的链上方法，供高级使用
         registerEnterpriseOnChain,
         createProductOnChain,
