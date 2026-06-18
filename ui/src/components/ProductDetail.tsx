@@ -28,6 +28,8 @@ export function ProductDetail({ product, onClose, onUpdate }: ProductDetailProps
     const [qrcodes, setQrcodes] = useState<QRCodeRecord[]>([]);
     const [qrcodeImages, setQrcodeImages] = useState<Map<string, string>>(new Map());
     const [showQrcodes, setShowQrcodes] = useState(false);
+    const [currentPage, setCurrentPage] = useState(1);
+    const [pageSize, setPageSize] = useState(6);
     const { theme } = useTheme();
     const { t } = useLanguage();
     const { uploadProductToChain } = useBlockchainService();
@@ -36,7 +38,12 @@ export function ProductDetail({ product, onClose, onUpdate }: ProductDetailProps
         const codes = mockStore.getQRCodeByProductId(product.id);
         setQrcodes(codes);
         generateQrcodeImages(codes);
+        setCurrentPage(1);
     }, [product.id]);
+
+    useEffect(() => {
+        setCurrentPage(1);
+    }, [pageSize]);
 
     const generateQrcodeImages = async (codes: QRCodeRecord[]) => {
         const images = new Map<string, string>();
@@ -160,7 +167,7 @@ export function ProductDetail({ product, onClose, onUpdate }: ProductDetailProps
             case 'processing':
                 return <span style={{ ...baseStyle, background: "#dbeafe", color: "#1d4ed8", borderColor: "#3b82f6" }}>{t("processing")}</span>;
             case 'failed':
-                return <span style={{ ...baseStyle, background: "#fee2e2", color: "#b91c1c", borderColor: "#ef4444" }}>Failed</span>;
+                return <span style={{ ...baseStyle, background: "#fee2e2", color: "#b91c1c", borderColor: "#ef4444" }}>{t("failed")}</span>;
         }
     };
 
@@ -443,63 +450,122 @@ export function ProductDetail({ product, onClose, onUpdate }: ProductDetailProps
                     </div>
 
                     {showQrcodes && (
-                        <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(200px, 1fr))", gap: "16px" }}>
-                            {qrcodes.map((qrcode) => {
-                                const url = `${window.location.origin}/verify/${qrcode.id}`;
-                                const qrcodeImage = qrcodeImages.get(qrcode.id);
-                                return (
-                                    <div 
-                                        key={qrcode.id} 
+                        <>
+                            <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(200px, 1fr))", gap: "16px" }}>
+                                {(() => {
+                                    const start = (currentPage - 1) * pageSize;
+                                    const end = start + pageSize;
+                                    const currentQrcodes = qrcodes.slice(start, end);
+                                    return currentQrcodes.map((qrcode) => {
+                                        const url = `${window.location.origin}/verify/${qrcode.id}`;
+                                        const qrcodeImage = qrcodeImages.get(qrcode.id);
+                                        return (
+                                            <div 
+                                                key={qrcode.id} 
+                                                style={{ 
+                                                    padding: "12px", 
+                                                    background: theme.surface, 
+                                                    borderRadius: "8px", 
+                                                    border: `1px solid ${theme.border}`,
+                                                    textAlign: "center"
+                                                }}
+                                            >
+                                                <div style={{ marginBottom: "8px" }}>
+                                                    {qrcodeImage ? (
+                                                        <img 
+                                                            src={qrcodeImage} 
+                                                            alt="QR Code" 
+                                                            style={{ width: "128px", height: "128px", margin: "0 auto", border: `1px solid ${theme.border}`, borderRadius: "4px" }}
+                                                        />
+                                                    ) : (
+                                                        <div style={{ width: "128px", height: "128px", margin: "0 auto", border: `1px dashed ${theme.border}`, borderRadius: "4px", display: "flex", alignItems: "center", justifyContent: "center", color: theme.textSecondary, fontSize: "12px" }}>
+                                                            {t("generating")}...
+                                                        </div>
+                                                    )}
+                                                </div>
+                                                <div style={{ fontSize: "10px", color: theme.textSecondary, marginBottom: "4px", wordBreak: "break-all", maxWidth: "100%", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
+                                                    {qrcode.id}
+                                                </div>
+                                                <div style={{ fontSize: "10px", color: theme.textSecondary, marginBottom: "8px" }}>
+                                                    {t("scanCount")}: {qrcode.scanCount}
+                                                </div>
+                                                <div style={{ marginBottom: "8px" }}>
+                                                    {getQrcodeStatusBadge(qrcode.isClaimed)}
+                                                </div>
+                                                <button 
+                                                    onClick={() => handleCopyLink(url)}
+                                                    style={{ 
+                                                        width: "100%",
+                                                        padding: "6px", 
+                                                        borderRadius: "4px", 
+                                                        border: `1px solid ${theme.border}`, 
+                                                        cursor: "pointer", 
+                                                        fontSize: "12px", 
+                                                        background: theme.surface, 
+                                                        color: theme.text,
+                                                        wordBreak: "break-all"
+                                                    }}
+                                                >
+                                                    🔗 {t("copyLink")}
+                                                </button>
+                                            </div>
+                                        );
+                                    });
+                                })()}
+                            </div>
+
+                            <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginTop: "16px", paddingTop: "12px", borderTop: `1px solid ${theme.border}` }}>
+                                <div style={{ display: "flex", alignItems: "center", gap: "8px" }}>
+                                    <span style={{ fontSize: "12px", color: theme.textSecondary }}>{t("pageSize")}:</span>
+                                    <select
+                                        value={pageSize}
+                                        onChange={(e) => setPageSize(parseInt(e.target.value))}
+                                        style={{ padding: "4px 8px", borderRadius: "4px", border: `1px solid ${theme.border}`, fontSize: "12px", background: theme.surface, color: theme.text, cursor: "pointer" }}
+                                    >
+                                        <option value={6}>6</option>
+                                        <option value={12}>12</option>
+                                        <option value={24}>24</option>
+                                        <option value={50}>50</option>
+                                    </select>
+                                </div>
+
+                                <div style={{ display: "flex", alignItems: "center", gap: "8px" }}>
+                                    <button 
+                                        onClick={() => setCurrentPage(p => Math.max(1, p - 1))}
+                                        disabled={currentPage === 1}
                                         style={{ 
-                                            padding: "12px", 
-                                            background: theme.surface, 
-                                            borderRadius: "8px", 
-                                            border: `1px solid ${theme.border}`,
-                                            textAlign: "center"
+                                            padding: "4px 10px", 
+                                            borderRadius: "4px", 
+                                            border: `1px solid ${theme.border}`, 
+                                            cursor: currentPage === 1 ? "not-allowed" : "pointer", 
+                                            fontSize: "12px", 
+                                            background: currentPage === 1 ? theme.background : theme.surface, 
+                                            color: currentPage === 1 ? theme.textSecondary : theme.text 
                                         }}
                                     >
-                                        <div style={{ marginBottom: "8px" }}>
-                                            {qrcodeImage ? (
-                                                <img 
-                                                    src={qrcodeImage} 
-                                                    alt="QR Code" 
-                                                    style={{ width: "128px", height: "128px", margin: "0 auto", border: `1px solid ${theme.border}`, borderRadius: "4px" }}
-                                                />
-                                            ) : (
-                                                <div style={{ width: "128px", height: "128px", margin: "0 auto", border: `1px dashed ${theme.border}`, borderRadius: "4px", display: "flex", alignItems: "center", justifyContent: "center", color: theme.textSecondary, fontSize: "12px" }}>
-                                                    {t("generating")}...
-                                                </div>
-                                            )}
-                                        </div>
-                                        <div style={{ fontSize: "10px", color: theme.textSecondary, marginBottom: "4px", wordBreak: "break-all", maxWidth: "100%", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
-                                            {qrcode.id}
-                                        </div>
-                                        <div style={{ fontSize: "10px", color: theme.textSecondary, marginBottom: "8px" }}>
-                                            {t("scanCount")}: {qrcode.scanCount}
-                                        </div>
-                                        <div style={{ marginBottom: "8px" }}>
-                                            {getQrcodeStatusBadge(qrcode.isClaimed)}
-                                        </div>
-                                        <button 
-                                            onClick={() => handleCopyLink(url)}
-                                            style={{ 
-                                                width: "100%",
-                                                padding: "6px", 
-                                                borderRadius: "4px", 
-                                                border: `1px solid ${theme.border}`, 
-                                                cursor: "pointer", 
-                                                fontSize: "12px", 
-                                                background: theme.surface, 
-                                                color: theme.text,
-                                                wordBreak: "break-all"
-                                            }}
-                                        >
-                                            🔗 {t("copyLink")}
-                                        </button>
-                                    </div>
-                                );
-                            })}
-                        </div>
+                                        ← {t("prev")}
+                                    </button>
+                                    <span style={{ fontSize: "12px", color: theme.text }}>
+                                        {t("page")} {currentPage} {t("of")} {Math.ceil(qrcodes.length / pageSize)}
+                                    </span>
+                                    <button 
+                                        onClick={() => setCurrentPage(p => Math.min(Math.ceil(qrcodes.length / pageSize), p + 1))}
+                                        disabled={currentPage === Math.ceil(qrcodes.length / pageSize)}
+                                        style={{ 
+                                            padding: "4px 10px", 
+                                            borderRadius: "4px", 
+                                            border: `1px solid ${theme.border}`, 
+                                            cursor: currentPage === Math.ceil(qrcodes.length / pageSize) ? "not-allowed" : "pointer", 
+                                            fontSize: "12px", 
+                                            background: currentPage === Math.ceil(qrcodes.length / pageSize) ? theme.background : theme.surface, 
+                                            color: currentPage === Math.ceil(qrcodes.length / pageSize) ? theme.textSecondary : theme.text 
+                                        }}
+                                    >
+                                        {t("next")} →
+                                    </button>
+                                </div>
+                            </div>
+                        </>
                     )}
                 </div>
             )}

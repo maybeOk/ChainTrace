@@ -23,7 +23,15 @@ export function CreateProduct({ enterprise, onCreated, onClose }: CreateProductP
     const { theme } = useTheme();
     const { t } = useLanguage();
 
-    const categories = ["食品", "服装", "电子产品", "化妆品", "农产品", "医药", "其他"];
+    const categoryList = [
+        { key: t("food"), value: "食品" },
+        { key: t("clothing"), value: "服装" },
+        { key: t("electronics"), value: "电子产品" },
+        { key: t("cosmetics"), value: "化妆品" },
+        { key: t("agricultural"), value: "农产品" },
+        { key: t("medicine"), value: "医药" },
+        { key: t("other"), value: "其他" },
+    ];
 
     const handleAddField = () => {
         if (!newFieldName.trim()) {
@@ -137,8 +145,8 @@ export function CreateProduct({ enterprise, onCreated, onClose }: CreateProductP
                         }}
                     >
                         <option value="">{t("selectCategory")}</option>
-                        {categories.map((cat) => (
-                            <option key={cat} value={cat}>{cat}</option>
+                        {categoryList.map((cat) => (
+                            <option key={cat.value} value={cat.value}>{cat.key}</option>
                         ))}
                     </select>
 

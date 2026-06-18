@@ -13,7 +13,7 @@ export function WalletDropdown({ enterprise }: WalletDropdownProps) {
     const currentAccount = useCurrentAccount();
     const [isOpen, setIsOpen] = useState(false);
     const { theme } = useTheme();
-    const { t } = useLanguage();
+    const { t, language, setLanguage } = useLanguage();
 
     const formatAddress = (address: string) => {
         if (!address) return "";
@@ -24,11 +24,10 @@ export function WalletDropdown({ enterprise }: WalletDropdownProps) {
         return (
             <div style={{ display: "flex", gap: "10px", alignItems: "center" }}>
                 <select
-                    value={t("chinese") === "中文" ? "zh" : "en"}
+                    value={language}
                     onChange={(e) => {
                         const lang = e.target.value as "zh" | "en";
-                        localStorage.setItem("language", lang);
-                        window.location.reload();
+                        setLanguage(lang);
                     }}
                     style={{
                         padding: "8px 12px",
@@ -53,11 +52,10 @@ export function WalletDropdown({ enterprise }: WalletDropdownProps) {
     return (
         <div style={{ position: "relative", display: "flex", gap: "10px", alignItems: "center" }}>
             <select
-                value={t("chinese") === "中文" ? "zh" : "en"}
+                value={language}
                 onChange={(e) => {
                     const lang = e.target.value as "zh" | "en";
-                    localStorage.setItem("language", lang);
-                    window.location.reload();
+                    setLanguage(lang);
                 }}
                 style={{
                     padding: "8px 12px",

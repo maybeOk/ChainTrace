@@ -24,7 +24,19 @@ export function Dashboard({ enterprise }: DashboardProps) {
     const { t } = useLanguage();
     const { uploadProductToChain } = useBlockchainService();
 
-    const categories = [t("all"), t("food"), t("clothing"), t("electronics"), t("cosmetics"), t("agricultural"), t("medicine"), t("other")];
+    const categoryOptions = [
+        { label: t("food"), value: "食品" },
+        { label: t("clothing"), value: "服装" },
+        { label: t("electronics"), value: "电子产品" },
+        { label: t("cosmetics"), value: "化妆品" },
+        { label: t("agricultural"), value: "农产品" },
+        { label: t("medicine"), value: "医药" },
+        { label: t("other"), value: "其他" },
+    ];
+
+    const getCategoryLabel = (value: string) => {
+        return categoryOptions.find(c => c.value === value)?.label || value;
+    };
 
     const loadProducts = () => {
         let allProducts = mockStore.getAllProducts();
@@ -40,18 +52,8 @@ export function Dashboard({ enterprise }: DashboardProps) {
             );
         }
 
-        if (selectedCategory && selectedCategory !== t("all")) {
-            const categoryMap: Record<string, string> = {
-                [t("food")]: "食品",
-                [t("clothing")]: "服装",
-                [t("electronics")]: "电子产品",
-                [t("cosmetics")]: "化妆品",
-                [t("agricultural")]: "农产品",
-                [t("medicine")]: "医药",
-                [t("other")]: "其他",
-            };
-            const mappedCategory = categoryMap[selectedCategory] || selectedCategory;
-            allProducts = allProducts.filter(p => p.category === mappedCategory);
+        if (selectedCategory) {
+            allProducts = allProducts.filter(p => p.category === selectedCategory);
         }
 
         setProducts(allProducts);
@@ -314,8 +316,9 @@ export function Dashboard({ enterprise }: DashboardProps) {
                             (e.target as HTMLSelectElement).style.boxShadow = "none";
                         }}
                     >
-                        {categories.map((cat) => (
-                            <option key={cat} value={cat}>{cat}</option>
+                        <option value="">{t("all")}</option>
+                        {categoryOptions.map((cat) => (
+                            <option key={cat.value} value={cat.value}>{cat.label}</option>
                         ))}
                     </select>
                     {selectedIds.length > 0 && (
@@ -478,16 +481,16 @@ export function Dashboard({ enterprise }: DashboardProps) {
                                                 <span style={{ fontWeight: "medium", color: theme.text }}>{product.name}</span>
                                             </div>
                                         </td>
-                                        <td style={{ padding: "12px 16px", color: theme.text }}>{product.category}</td>
+                                        <td style={{ padding: "12px 16px", color: theme.text }}>{getCategoryLabel(product.category)}</td>
                                         <td style={{ padding: "12px 16px" }}>
-                                            <span style={{ 
-                                                padding: "2px 8px", 
-                                                borderRadius: "4px", 
+                                            <span style={{
+                                                padding: "2px 8px",
+                                                borderRadius: "4px",
                                                 background: theme.surfaceHover,
                                                 fontSize: "12px",
                                                 color: theme.textSecondary
                                             }}>
-                                                {product.fields.length} {t("fieldValue")}
+                                                {product.fields.length}{t("fieldCount")}
                                             </span>
                                         </td>
                                         <td style={{ padding: "12px 16px" }}>
@@ -522,14 +525,14 @@ export function Dashboard({ enterprise }: DashboardProps) {
                                                 }}>{t("processing")}</span>
                                             )}
                                             {product.status === 'failed' && (
-                                                <span style={{ 
-                                                    padding: "2px 8px", 
-                                                    borderRadius: "4px", 
+                                                <span style={{
+                                                    padding: "2px 8px",
+                                                    borderRadius: "4px",
                                                     background: "#fee2e2",
                                                     color: "#b91c1c",
                                                     fontSize: "12px",
                                                     border: "1px solid #ef4444"
-                                                }}>Failed</span>
+                                                }}>{t("failed")}</span>
                                             )}
                                         </td>
                                         <td style={{ padding: "12px 16px", color: theme.text }}>
@@ -603,7 +606,7 @@ export function Dashboard({ enterprise }: DashboardProps) {
                                                                 const qrcodes = mockStore.createBatchQRCode(product.id, actualCount);
                                                                 const urls = qrcodes.map(q => `${window.location.origin}/verify/${q.id}`).join("\n");
                                                                 navigator.clipboard.writeText(urls);
-                                                                alert(`${t("batchQrcodeGenerated")}\n\n${t("generatedCount")}: ${qrcodes.length}\n\n${t("qrcodeUrls")}:\n${urls}\n\n✅ URL列表已复制到剪贴板`);
+                                                                alert(`${t("batchQrcodeGenerated")}\n\n${t("generatedCount")}: ${qrcodes.length}\n\n${t("qrcodeUrls")}:\n${urls}\n\n${t("urlCopied")}`);
                                                                 loadProducts();
                                                             }}
                                                             style={{ 
