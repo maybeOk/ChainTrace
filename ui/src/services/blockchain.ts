@@ -5,6 +5,10 @@ import { Transaction } from "@mysten/sui/transactions";
 // 配置 - 从环境变量读取
 const PACKAGE_ID = import.meta.env.VITE_CONTRACT_PACKAGE_ID || "0x0";
 const USE_REAL_BLOCKCHAIN = import.meta.env.VITE_USE_REAL_BLOCKCHAIN === "true";
+const ENTERPRISE_MANAGER_ID = import.meta.env.VITE_ENTERPRISE_MANAGER_ID || "0x0";
+const PRODUCT_MANAGER_ID = import.meta.env.VITE_PRODUCT_MANAGER_ID || "0x0";
+const NFT_MANAGER_ID = import.meta.env.VITE_NFT_MANAGER_ID || "0x0";
+const QRCODE_MANAGER_ID = import.meta.env.VITE_QRCODE_MANAGER_ID || "0x0";
 
 interface RegisterEnterpriseParams {
     name: string;
@@ -65,11 +69,10 @@ export function useBlockchainService() {
             const tx = new Transaction();
             tx.setGasBudget(10000000);
 
-            // 调用企业注册函数
             tx.moveCall({
                 target: `${PACKAGE_ID}::enterprise::register`,
                 arguments: [
-                    tx.object("0x0000000000000000000000000000000000000000000000000000000000000006"), // EnterpriseManager ID
+                    tx.object(ENTERPRISE_MANAGER_ID),
                     tx.pure.string(name),
                     tx.pure.string(description),
                 ],
@@ -99,7 +102,7 @@ export function useBlockchainService() {
             tx.moveCall({
                 target: `${PACKAGE_ID}::product::create_product`,
                 arguments: [
-                    tx.object("0x0000000000000000000000000000000000000000000000000000000000000007"), // ProductManager ID
+                    tx.object(PRODUCT_MANAGER_ID),
                     tx.object(enterpriseObjId),
                     tx.pure.string(name),
                     tx.pure.string(description),
@@ -126,7 +129,7 @@ export function useBlockchainService() {
             tx.moveCall({
                 target: `${PACKAGE_ID}::qrcode::create_qrcode`,
                 arguments: [
-                    tx.object("0x0000000000000000000000000000000000000000000000000000000000000009"), // QRCodeManager ID
+                    tx.object(QRCODE_MANAGER_ID),
                     tx.object(productObjId),
                 ],
             });
@@ -151,7 +154,7 @@ export function useBlockchainService() {
             tx.moveCall({
                 target: `${PACKAGE_ID}::qrcode::scan_qrcode`,
                 arguments: [
-                    tx.object("0x0000000000000000000000000000000000000000000000000000000000000009"), // QRCodeManager ID
+                    tx.object(QRCODE_MANAGER_ID),
                     tx.object(qrcodeObjId),
                 ],
             });
@@ -179,8 +182,8 @@ export function useBlockchainService() {
             tx.moveCall({
                 target: `${PACKAGE_ID}::qrcode::claim_nft`,
                 arguments: [
-                    tx.object("0x0000000000000000000000000000000000000000000000000000000000000009"), // QRCodeManager ID
-                    tx.object("0x0000000000000000000000000000000000000000000000000000000000000008"), // NFTManager ID
+                    tx.object(QRCODE_MANAGER_ID),
+                    tx.object(NFT_MANAGER_ID),
                     tx.object(qrcodeObjId),
                     tx.object(productObjId),
                 ],
